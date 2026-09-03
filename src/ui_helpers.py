@@ -384,6 +384,7 @@ def render_topic_card(sc, questions: list, all_years: list, expanded: bool = Fal
                 score_components_radar(sc.score),
                 use_container_width=True,
                 config={"displayModeBar": False},
+                key=f"radar_{sc.cluster_id}",
             )
 
         # Why this score?
