@@ -24,7 +24,6 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import streamlit as st
-import pandas as pd
 
 from database.database import get_db_connection
 from src.chunker import chunk_papers
@@ -53,39 +52,49 @@ INDEX_CACHE_PATH = os.path.normpath(INDEX_CACHE_PATH)
 
 def load_papers_from_db() -> list[dict]:
     """
-    Load all paper texts from the database + processed files.
+    Load paper content for the RAG index.
+
+    Primary source: processed .txt files in data/processed/.
+    Fallback (Streamlit Cloud / no local files): reconstruct text from
+    the questions stored in the database.
 
     Returns list of dicts: {paper_id, source_name, year, text}
     """
-    conn = get_db_connection()
-    try:
-        papers_df = pd.read_sql_query(
-            "SELECT id, filename, year FROM papers WHERE processing_status = 'extracted'",
-            conn
-        )
-    finally:
-        conn.close()
+    from database.database import get_all_papers, get_questions_for_paper
 
-    if papers_df.empty:
+    papers = get_all_papers()
+    if not papers:
         return []
 
+    processed_dir = os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "data", "processed")
+    )
+
     result = []
-    processed_dir = os.path.join(os.path.dirname(__file__), "..", "data", "processed")
-    processed_dir = os.path.normpath(processed_dir)
+    for p in papers:
+        paper_id = p["id"]
+        filename = p["filename"]
+        year     = p.get("year")
 
-    for _, row in papers_df.iterrows():
-        paper_id    = str(row["id"])
-        filename    = row["filename"]
-        year        = int(row["year"]) if row["year"] else None
-
-        # Look for the processed .txt file
-        txt_name = os.path.splitext(filename)[0] + ".txt"
+        # ── Try the saved .txt file first ────────────────────────────────
+        txt_name = os.path.splitext(filename)[0] + "_extracted.txt"
         txt_path = os.path.join(processed_dir, txt_name)
-
         text = ""
         if os.path.exists(txt_path):
             with open(txt_path, "r", encoding="utf-8", errors="replace") as f:
                 text = f.read()
+
+        # ── Fallback: build text from questions in the DB ─────────────────
+        if not text.strip():
+            questions = get_questions_for_paper(paper_id)
+            if questions:
+                lines = [f"Examination paper: {filename}  Year: {year or 'unknown'}"]
+                for q in questions:
+                    num  = q.get("question_number", "")
+                    qtxt = q.get("question_text", "")
+                    if qtxt:
+                        lines.append(f"Q{num}: {qtxt}" if num else qtxt)
+                text = "\n".join(lines)
 
         if text.strip():
             result.append({
@@ -172,17 +181,11 @@ with st.sidebar:
     st.header("📚 Knowledge Base")
 
     # Check database
-    conn = get_db_connection()
     try:
-        papers_df = pd.read_sql_query(
-            "SELECT COUNT(*) as cnt FROM papers WHERE processing_status='extracted'",
-            conn
-        )
-        n_papers = int(papers_df["cnt"].iloc[0])
+        from database.database import get_all_papers
+        n_papers = len(get_all_papers())
     except Exception:
         n_papers = 0
-    finally:
-        conn.close()
 
     st.metric("Uploaded papers", n_papers)
 
