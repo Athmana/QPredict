@@ -1,0 +1,45 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+.venv/
+langgraph_env*/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# QPredict runtime data
+data/uploads/
+data/processed/
+data/qpredict.db
+
+# RAG index cache
+models/rag_index.pkl
+
+# pytest
+.pytest_cache/
+.coverage
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.env
+
+# Sentence-transformers model cache
+models/models--*/
+models/CACHEDIR.TAG
