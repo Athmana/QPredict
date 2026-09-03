@@ -33,6 +33,9 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "..", "data", "qpredict.db")
 
+# Ensure the data directory exists (needed on Streamlit Cloud where it isn't committed)
+os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
+
 
 def get_connection():
     """
